@@ -465,7 +465,7 @@
 
                         <div class="label">How to Cure:</div>
                         <p id="diseaseCure"></p>
-                    </div>
+                        <button id="speakResultBtn" onclick="speakDiseaseResult()" style="margin-top:15px; background: #1976d2;">🔊 Speak Result</button>                    </div>
                 </div>
             </div>
         </div>
@@ -478,7 +478,10 @@
         }
 
         window.onclick = function (event) {
-            if (!event.target.closest('.user-button')) {
+            // Don't close dropdown if clicking on user button, language select, or dropdown content
+            if (!event.target.closest('.user-button') &&
+                !event.target.closest('.lang-select-wrapper') &&
+                !event.target.closest('.dropdown-content')) {
                 const dropdowns = document.getElementsByClassName("dropdown-content");
                 for (let i = 0; i < dropdowns.length; i++) {
                     const openDropdown = dropdowns[i];
@@ -494,6 +497,7 @@
         let users = JSON.parse(localStorage.getItem('users')) || [];
         let currentUser = localStorage.getItem('currentUser');
         let crops = [];
+        let currentLanguage = localStorage.getItem('currentLanguage') || 'en';
 
         // ================== SIMPLE PASSWORD HASH (SIMULATION) ==================
         function hashPassword(password) {
@@ -578,6 +582,16 @@
             // Show username avatar/text
             document.getElementById('welcomeUser').innerText = '👤 ' + currentUser;
 
+            // Initialize language selection
+            const langSelect = document.getElementById('langSelect');
+            if (langSelect) {
+                langSelect.value = currentLanguage;
+                console.log('Language select set to:', currentLanguage); // Debug log
+                changeLanguage(); // Apply current language
+            } else {
+                console.error('Language select element not found!');
+            }
+
             renderCrops();
         }
 
@@ -639,8 +653,7 @@
             const cropList = document.getElementById('cropList');
             cropList.innerHTML = '';
 
-            const lang = document.getElementById('langSelect') ? document.getElementById('langSelect').value : 'en';
-            const t = translations && translations[lang] ? translations[lang] : translations['en'];
+            const t = translations && translations[currentLanguage] ? translations[currentLanguage] : translations['en'];
 
             crops.forEach(crop => {
                 const card = document.createElement('div');
@@ -653,8 +666,8 @@
       <input type="file" onchange="uploadPhoto(event, ${crop.id})" />
       <div class="photos">
         ${crop.photos.map(photo => `<img src="${photo}" />`).join('')}
-      <button onclick="openDiseaseModal(${crop.id})" style="margin-top:10px;">${t.reportProbBtn || 'Report Problem'}</button>
       </div>
+      <button onclick="openDiseaseModal(${crop.id})" style="margin-top:10px;">${t.reportProbBtn || 'Report Problem'}</button>
     `;
 
                 cropList.appendChild(card);
@@ -726,7 +739,8 @@
                 closeBtn: "Close",
                 plantedOn: "Planted on:",
                 deleteBtn: "Delete",
-                reportProbBtn: "Report Problem"
+                reportProbBtn: "Report Problem",
+                speakResultBtn: "🔊 Speak Result"
             },
             hi: {
                 dashTitle: "🌱 ग्रीनक्रॉप डैशबोर्ड",
@@ -743,7 +757,8 @@
                 closeBtn: "बंद करें",
                 plantedOn: "लगाया गया:",
                 deleteBtn: "हटाएं",
-                reportProbBtn: "समस्या"
+                reportProbBtn: "समस्या",
+                speakResultBtn: "🔊 परिणाम सुनें"
             },
             te: {
                 dashTitle: "🌱 గ్రీన్క్రాప్ డాష్బోర్డ్",
@@ -760,23 +775,39 @@
                 closeBtn: "మూసివేయి",
                 plantedOn: "నాటిన తేదీ:",
                 deleteBtn: "తొలగించు",
-                reportProbBtn: "సమస్యను నివేదించండి"
+                reportProbBtn: "సమస్యను నివేదించండి",
+                speakResultBtn: "🔊 ఫలితం వినండి"
             }
         };
 
         function changeLanguage() {
-            const lang = document.getElementById('langSelect').value;
-            const t = translations[lang];
+            const langSelect = document.getElementById('langSelect');
+            const lang = langSelect ? langSelect.value : 'en';
 
+            if (lang === currentLanguage) {
+                return;
+            }
+
+            const t = translations[lang];
+            if (!t) {
+                console.error('No translations found for language:', lang);
+                return;
+            }
+
+            // Save current language
+            currentLanguage = lang;
+            localStorage.setItem('currentLanguage', lang);
+
+            // Apply translations
             document.getElementById('dashTitle').innerText = t.dashTitle;
             document.getElementById('lblSettings').innerText = t.lblSettings;
             document.getElementById('lblLanguage').innerText = t.lblLanguage;
-            document.getElementById('lblAccount').innerText = t.lblAccount;
             document.getElementById('lblLogout').innerText = t.lblLogout;
             document.getElementById('addCropTitle').innerText = t.addCropTitle;
             document.getElementById('cropName').placeholder = t.cropNamePlace;
             document.getElementById('addCropBtn').innerText = t.addCropBtn;
 
+            // Update modal elements if they exist
             const reportTitle = document.getElementById('reportTitle');
             if (reportTitle) reportTitle.innerText = t.reportTitle;
 
@@ -789,7 +820,23 @@
             const closeBtn = document.getElementById('closeBtn');
             if (closeBtn) closeBtn.innerText = t.closeBtn;
 
+            const speakResultBtn = document.getElementById('speakResultBtn');
+            if (speakResultBtn) speakResultBtn.innerText = t.speakResultBtn;
+
+            // Update speech recognition
+            if (recognition) {
+                recognition.lang = lang;
+            }
+
             renderCrops();
+
+            // Visual feedback
+            const colors = {
+                'en': 'linear-gradient(135deg, #134e5e, #71b280, #2e7d32, #1b5e20)',
+                'hi': 'linear-gradient(135deg, #2e7d32, #71b280, #134e5e, #1b5e20)',
+                'te': 'linear-gradient(135deg, #1b5e20, #134e5e, #71b280, #2e7d32)'
+            };
+            document.body.style.background = colors[lang] || colors['en'];
         }
 
         // ================== SPEECH TO TEXT ==================
@@ -854,7 +901,7 @@
             if (isDictating) {
                 recognition.stop();
             } else {
-                recognition.lang = document.getElementById('langSelect').value;
+                recognition.lang = currentLanguage;
                 recognition.start();
             }
         }
@@ -863,6 +910,38 @@
             isDictating = false;
             const micBtn = document.getElementById('micBtn');
             if (micBtn) micBtn.classList.remove('mic-active');
+        }
+
+        // ================== TEXT TO SPEECH ==================
+        function speakText(text, lang = 'en-US') {
+            if ('speechSynthesis' in window) {
+                // Stop any existing speech
+                window.speechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang;
+                utterance.rate = 1;
+                utterance.pitch = 1;
+                utterance.volume = 1;
+
+                window.speechSynthesis.speak(utterance);
+            } else {
+                alert('Text-to-speech is not supported in this browser.');
+            }
+        }
+
+        // Function to speak disease detection result
+        function speakDiseaseResult() {
+            const title = document.getElementById('diseaseTitle').innerText;
+            const note = document.getElementById('diseaseNote').innerText;
+            const cure = document.getElementById('diseaseCure').innerText;
+            const lang = currentLanguage;
+            
+            const langMap = { 'en': 'en-US', 'hi': 'hi-IN', 'te': 'te-IN' };
+            const speechLang = langMap[lang] || 'en-US';
+
+            const fullText = `${title}. Symptom Note: ${note}. How to cure: ${cure}`;
+            speakText(fullText, speechLang);
         }
 
         // ================== INITIALIZATION ==================

@@ -11,6 +11,7 @@ const PORT = 3000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '.')));  // Serve static files
 
 // Setup Multer for uploads
 const storage = multer.diskStorage({
@@ -63,6 +64,11 @@ const db = new sqlite3.Database('./database.sqlite', (err) => {
 
 // Enable foreign keys
 db.run('PRAGMA foreign_keys = ON');
+
+// Serve index.html at root
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // --- AUTHENTICATION API ---
 app.post('/api/register', (req, res) => {
